@@ -18,6 +18,7 @@ void FujitsuHalcyonController::setup() {
         {
             .Config = [this](const fujitsu_halcyon_controller::Config& data){ this->update_from_device(data); },
             .Error  = [this](const fujitsu_halcyon_controller::Packet& data){ this->update_from_device(data); },
+            .ZoneConfig = [this](const fujitsu_halcyon_controller::ZoneConfig& data){ this->update_from_device(data); },
             .ControllerConfig = [this](const uint8_t address, const fujitsu_halcyon_controller::Config& data){ this->update_from_controller(address, data); },
             .ReadBytes  = [this](uint8_t *buf, size_t length){
                 this->read_array(buf, length);
@@ -93,6 +94,7 @@ climate::ClimateTraits FujitsuHalcyonController::traits() {
     using namespace climate;
 
     auto features = this->controller->get_features();
+    auto zone_function = this->controller->get_zone_function();
     auto traits = ClimateTraits();
 
     // Target temperature / Setpoint
@@ -158,6 +160,36 @@ climate::ClimateTraits FujitsuHalcyonController::traits() {
         this->reset_filter_button->set_internal(false);
     }
 
+    // if (!zone_function.EnabledZones.Zone1)
+    //     this->zone_1_switch->set_internal(true);
+
+    //if (zone_function.EnabledZones.Zone2)
+    //    this->zone_2_switch->set_internal(false);
+    //else
+    //    this->zone_2_switch->set_internal(true);
+
+    // if (!zone_function.EnabledZones.Zone3)
+    //     this->zone_3_switch->set_internal(true);
+
+    // if (!zone_function.EnabledZones.Zone4)
+    //     this->zone_4_switch->set_internal(true);    
+
+    // if (!zone_function.EnabledZones.Zone5)
+    //     this->zone_5_switch->set_internal(true);
+
+    // if (!zone_function.EnabledZones.Zone6)
+    //     this->zone_6_switch->set_internal(true);
+        
+    // if (!zone_function.EnabledZones.Zone7)
+    //     this->zone_7_switch->set_internal(true);
+        
+    // if (!zone_function.EnabledZones.Zone8)
+    //     this->zone_8_switch->set_internal(true);
+
+    // temp
+    this->zone_1_switch->set_internal(false);
+    this->zone_2_switch->set_internal(false);
+    
     this->reinitialize_button->set_internal(false);
 
     return traits;
@@ -260,6 +292,42 @@ void FujitsuHalcyonController::update_from_device(const fujitsu_halcyon_controll
 
     if (need_to_publish)
         this->publish_state();
+}
+
+void FujitsuHalcyonController::update_from_device(const fujitsu_halcyon_controller::ZoneConfig& data) {
+    auto zone_function = this->controller->get_zone_function();
+
+    if (zone_function.EnabledZones[ZoneFields::Zone1] && (data.ActiveZones[ZoneFields::Zone1] != this->zone_1_switch->state)) {
+        this->zone_1_switch->publish_state(data.ActiveZones[ZoneFields::Zone1]);
+    }
+    if (zone_function.EnabledZones[ZoneFields::Zone2] && (data.ActiveZones[ZoneFields::Zone2] != this->zone_2_switch->state)) {
+        this->zone_2_switch->publish_state(data.ActiveZones[ZoneFields::Zone2]);
+    }
+    // if (data.ActiveZones[ZoneFields::Zone3] != this->zone_3_switch->state) {
+    //     this->zone_3_switch->publish_state(data.ActiveZones[ZoneFields::Zone3]);
+    // }
+    // if (data.ActiveZones[ZoneFields::Zone4] != this->zone_4_switch->state) {
+    //     this->zone_4_switch->publish_state(data.ActiveZones[ZoneFields::Zone4]);
+    // }
+    // if (data.ActiveZones[ZoneFields::Zone5] != this->zone_5_switch->state) {
+    //     this->zone_5_switch->publish_state(data.ActiveZones[ZoneFields::Zone5]);
+    // }
+    // if (data.ActiveZones[ZoneFields::Zone6] != this->zone_6_switch->state) {
+    //     this->zone_6_switch->publish_state(data.ActiveZones[ZoneFields::Zone6]);
+    // }
+    // if (data.ActiveZones[ZoneFields::Zone7] != this->zone_7_switch->state) {
+    //     this->zone_7_switch->publish_state(data.ActiveZones[ZoneFields::Zone7]);
+    // }
+    // if (data.ActiveZones[ZoneFields::Zone8] != this->zone_8_switch->state) {
+    //     this->zone_8_switch->publish_state(data.ActiveZones[ZoneFields::Zone8]);
+    // }
+
+    if (data.ActiveZoneGroups.Day != this->zone_group_day_switch->state) {
+        this->zone_group_day_switch->publish_state(data.ActiveZoneGroups.Day);
+    }
+    if (data.ActiveZoneGroups.Night != this->zone_group_night_switch->state) {
+        this->zone_group_night_switch->publish_state(data.ActiveZoneGroups.Night);
+    }
 }
 
 void FujitsuHalcyonController::update_from_device(const fujitsu_halcyon_controller::Packet& data) {

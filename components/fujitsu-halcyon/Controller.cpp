@@ -194,6 +194,15 @@ void Controller::process_packet(const Packet::Buffer& buffer, bool lastPacketOnW
                 break;
             case PacketTypeEnum::Status:
                 break;
+            case PacketTypeEnum::ZoneConfig:
+                this->current_zone_configuration = packet.ZoneConfig;
+
+                if (this->callbacks.ZoneConfig)
+                    deferred_callback = [this](){ this->callbacks.ZoneConfig(this->current_zone_configuration); };
+                break;
+            case PacketTypeEnum::ZoneFunction:
+                this->zone_function = packet.ZoneFunction;
+                break;
         }
     } else {
         switch (packet.Type) {
@@ -221,7 +230,24 @@ void Controller::process_packet(const Packet::Buffer& buffer, bool lastPacketOnW
         else if ((error_flag_changed && this->is_primary_controller()) ||
                  (packet.Type == PacketTypeEnum::Error && !this->is_primary_controller()))
             tx_packet.Type = PacketTypeEnum::Error;
-        else {
+        else if (this->zone_configuration_changes.any()) {
+            tx_packet.Type = PacketTypeEnum::ZoneConfig;
+            tx_packet.ZoneConfig = this->current_zone_configuration;
+            tx_packet.ZoneConfig.Controller.Write = true;
+
+            if (this->zone_configuration_changes[ZoneSettableFields::Zones]) {
+                //for (int i; i < ZoneFields::MAX; i++) {
+                //    tx_packet.ZoneConfig.ActiveZones[i] = this->changed_zone_configuration.ActiveZones[i];
+                //}
+                tx_packet.ZoneConfig.ActiveZones = this->changed_zone_configuration.ActiveZones;
+            }
+            if (this->zone_configuration_changes[ZoneSettableFields::ZoneGroups]) {
+                tx_packet.ZoneConfig.ActiveZoneGroups.Day = this->changed_zone_configuration.ActiveZoneGroups.Day;
+                tx_packet.ZoneConfig.ActiveZoneGroups.Night = this->changed_zone_configuration.ActiveZoneGroups.Night;
+            }
+
+            this->zone_configuration_changes.reset();
+        } else {
             // First CONFIG packet sent from Fujitsu controller has write flag set, but we do not restore state at this time
             tx_packet.Type = PacketTypeEnum::Config;
             tx_packet.Config = this->current_configuration;
@@ -435,6 +461,49 @@ bool Controller::set_horizontal_swing(bool swing_horizontal, bool ignore_lock) {
     this->changed_configuration.SwingHorizontal = swing_horizontal;
     this->configuration_changes[SettableFields::SwingHorizontal] = true;
     return true;
+}
+
+bool Controller::set_zone(ZoneFields::Values zone_value, bool zone_active, bool ignore_lock) {
+    if (!ignore_lock && this->current_configuration.IndoorUnit.Lock.All)
+        return false;
+
+    if (!this->zone_function.EnabledZones[zone_value])
+        return false;
+
+    // Build resultant set for active zones
+    for (int i; i < ZoneFields::MAX; i++) {
+        if (i == zone_value)
+            this->changed_zone_configuration.ActiveZones[i] = zone_active;
+        else
+            this->changed_zone_configuration.ActiveZones[i] = this->current_zone_configuration.ActiveZones[i];
+    }
+
+    // Bail if we try to turn off all zones... physical controller currently prevents this
+    if (!this->changed_zone_configuration.ActiveZones.any() && !this->zone_function.EnabledZones[ZoneFields::Common])
+        return false;
+    
+    this->zone_configuration_changes[ZoneSettableFields::Zones] = true;
+
+    // Turn off zone groups if we get a request for an individual zone change
+    this->changed_zone_configuration.ActiveZoneGroups.Day = false;
+    this->changed_zone_configuration.ActiveZoneGroups.Night = false;
+
+    this->zone_configuration_changes[ZoneSettableFields::ZoneGroups] = true;
+    return zone_active;
+}
+
+bool Controller::set_zone_group_day(bool zone_group_active, bool ignore_lock) {
+    if (!ignore_lock && this->current_configuration.IndoorUnit.Lock.All)
+        return false;
+    
+    return false;
+}
+
+bool Controller::set_zone_group_night(bool zone_group_active, bool ignore_lock) {
+    if (!ignore_lock && this->current_configuration.IndoorUnit.Lock.All)
+        return false;
+    
+    return false;
 }
 
 bool Controller::advance_vertical_louver(bool ignore_lock) {
