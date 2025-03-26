@@ -202,6 +202,9 @@ void Controller::process_packet(const Packet::Buffer& buffer, bool lastPacketOnW
                 break;
             case PacketTypeEnum::ZoneFunction:
                 this->zone_function = packet.ZoneFunction;
+
+                if (this->callbacks.ZoneFunction)
+                    deferred_callback = [this](){ this->callbacks.ZoneFunction(this->zone_function); };
                 break;
         }
     } else {

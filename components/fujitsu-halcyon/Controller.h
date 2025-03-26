@@ -75,6 +75,7 @@ class Controller {
     using ConfigCallback = std::function<void(const Config&)>;
     using ErrorCallback  = std::function<void(const Packet&)>;
     using ZoneConfigCallback = std::function<void(const ZoneConfig&)>;
+    using ZoneFunctionCallback = std::function<void(const ZoneFunction&)>;
     using ControllerConfigCallback = std::function<void(const uint8_t address, const Config&)>;
     using ReadBytesCallback  = std::function<void(uint8_t *data, size_t len)>;
     using WriteBytesCallback = std::function<void(const uint8_t *data, size_t len)>;
@@ -83,6 +84,7 @@ class Controller {
         ConfigCallback Config;
         ErrorCallback Error;
         ZoneConfigCallback ZoneConfig;
+        ZoneFunctionCallback ZoneFunction;
         ControllerConfigCallback ControllerConfig;
         ReadBytesCallback ReadBytes;
         WriteBytesCallback WriteBytes;

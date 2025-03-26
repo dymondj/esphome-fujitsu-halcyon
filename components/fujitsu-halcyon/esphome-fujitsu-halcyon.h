@@ -89,6 +89,7 @@ class FujitsuHalcyonController : public Component, public climate::Climate, publ
 
         void update_from_device(const fujitsu_halcyon_controller::Config& data);
         void update_from_device(const fujitsu_halcyon_controller::ZoneConfig& data);
+        void update_from_device(const fujitsu_halcyon_controller::ZoneFunction& data);
         void update_from_device(const fujitsu_halcyon_controller::Packet& data);
         void update_from_controller(const uint8_t address, const fujitsu_halcyon_controller::Config& data);
 

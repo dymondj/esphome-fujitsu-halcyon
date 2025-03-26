@@ -19,6 +19,7 @@ void FujitsuHalcyonController::setup() {
             .Config = [this](const fujitsu_halcyon_controller::Config& data){ this->update_from_device(data); },
             .Error  = [this](const fujitsu_halcyon_controller::Packet& data){ this->update_from_device(data); },
             .ZoneConfig = [this](const fujitsu_halcyon_controller::ZoneConfig& data){ this->update_from_device(data); },
+            .ZoneFunction = [this](const fujitsu_halcyon_controller::ZoneFunction& data){ this->update_from_device(data); },
             .ControllerConfig = [this](const uint8_t address, const fujitsu_halcyon_controller::Config& data){ this->update_from_controller(address, data); },
             .ReadBytes  = [this](uint8_t *buf, size_t length){
                 this->read_array(buf, length);
@@ -159,35 +160,9 @@ climate::ClimateTraits FujitsuHalcyonController::traits() {
         this->filter_sensor->set_internal(false);
         this->reset_filter_button->set_internal(false);
     }
-
-    // if (zone_function.EnabledZones.Zone1)
-    //     this->zone_1_switch->set_internal(false);
-
-    // if (zone_function.EnabledZones.Zone2)
-    //    this->zone_2_switch->set_internal(false);
-
-    // if (zone_function.EnabledZones.Zone3)
-    //     this->zone_3_switch->set_internal(false);
-
-    // if (zone_function.EnabledZones.Zone4)
-    //     this->zone_4_switch->set_internal(false);    
-
-    // if (zone_function.EnabledZones.Zone5)
-    //     this->zone_5_switch->set_internal(false);
-
-    // if (zone_function.EnabledZones.Zone6)
-    //     this->zone_6_switch->set_internal(false);
-        
-    // if (zone_function.EnabledZones.Zone7)
-    //     this->zone_7_switch->set_internal(false);
-        
-    // if (zone_function.EnabledZones.Zone8)
-    //     this->zone_8_switch->set_internal(false);
-
-    // temp
-    this->zone_1_switch->set_internal(false);
-    this->zone_2_switch->set_internal(false);
     
+    // Note: adding zone features toggle here seems to take too long and cause failures in response to tx and rx
+
     this->reinitialize_button->set_internal(false);
 
     return traits;
@@ -293,10 +268,18 @@ void FujitsuHalcyonController::update_from_device(const fujitsu_halcyon_controll
 }
 
 void FujitsuHalcyonController::update_from_device(const fujitsu_halcyon_controller::ZoneConfig& data) {
+    ESP_LOGD(TAG, "Processing zone config update");
+    ESP_LOGD(TAG, "zone 1: %d", data.ActiveZones.Zone1);
+    ESP_LOGD(TAG, "zone 1 switch: %d", this->zone_1_switch->state);
+    ESP_LOGD(TAG, "zone 2: %d", data.ActiveZones.Zone2);
+    ESP_LOGD(TAG, "zone 2 switch: %d", this->zone_2_switch->state);
+
     if (data.ActiveZones.Zone1 != this->zone_1_switch->state) {
+        ESP_LOGD(TAG, "Setting zone 1 from controller");
         this->zone_1_switch->publish_state(data.ActiveZones.Zone1);
     }
     if (data.ActiveZones.Zone2 != this->zone_2_switch->state) {
+        ESP_LOGD(TAG, "Setting zone 2 from controller");
         this->zone_2_switch->publish_state(data.ActiveZones.Zone2);
     }
     if (data.ActiveZones.Zone3 != this->zone_3_switch->state) {
@@ -325,6 +308,43 @@ void FujitsuHalcyonController::update_from_device(const fujitsu_halcyon_controll
         this->zone_group_night_switch->publish_state(data.ActiveZoneGroups.Night);
     }
 }
+
+void FujitsuHalcyonController::update_from_device(const fujitsu_halcyon_controller::ZoneFunction& data) {
+    ESP_LOGD(TAG, "Zone function update");
+    ESP_LOGD(TAG, "zone 1: %d", data.EnabledZones.Zone1);
+    ESP_LOGD(TAG, "zone 1 state: %d", this->zone_1_switch->is_internal());
+    ESP_LOGD(TAG, "zone 2: %d", data.EnabledZones.Zone2);
+    ESP_LOGD(TAG, "zone 2 state: %d", this->zone_2_switch->is_internal());
+
+    if (data.EnabledZones.Zone1) {
+        ESP_LOGD(TAG, "Enabling zone 1");
+        this->zone_1_switch->set_internal(false);
+    }
+
+    if (data.EnabledZones.Zone2) {
+       ESP_LOGD(TAG, "Enabling zone 2");
+       this->zone_2_switch->set_internal(false);
+    }
+
+    if (data.EnabledZones.Zone3)
+        this->zone_3_switch->set_internal(false);
+
+    if (data.EnabledZones.Zone4)
+        this->zone_4_switch->set_internal(false);    
+
+    if (data.EnabledZones.Zone5)
+        this->zone_5_switch->set_internal(false);
+
+    if (data.EnabledZones.Zone6)
+        this->zone_6_switch->set_internal(false);
+        
+    if (data.EnabledZones.Zone7)
+        this->zone_7_switch->set_internal(false);
+        
+    if (data.EnabledZones.Zone8)
+        this->zone_8_switch->set_internal(false);
+}
+
 
 void FujitsuHalcyonController::update_from_device(const fujitsu_halcyon_controller::Packet& data) {
     using fujitsu_halcyon_controller::PacketTypeEnum;
